@@ -77,7 +77,7 @@ async function mail(){
     };
 
     if (resp_choice.toLowerCase() === `get info w/ letter id`){
-        info_letter()
+        await info_letter(api_key);
     };
 
     if (resp_choice.toLowerCase() === `get info w/ package id`){
@@ -201,6 +201,53 @@ async function list_packages(api_key){
     } catch (error){
         console.error('');
         console.error(chalk.red(`an error occured while fetching packages...`));
+        console.error(chalk.red(`make sure the API key you're using is valid!`));
+    }
+}
+
+async function info_letter(api_key){
+    let ltr_choice;
+    
+    const response = await prompt({
+        type: 'input',
+        name: 'ltr_id',
+        message: 'letter ID to lookup:'
+    });
+    ltr_choice = response.ltr_id;
+
+    console.log(chalk.blue('loading!'));
+    try {
+        const response = await axios.get(`https://mail.hackclub.com/api/public/v1/letters/${ltr_choice}`, {
+            headers: {
+                'Authorization': `Bearer ${api_key}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const letter = response.data.letter;
+
+        let statusColor = chalk.white;
+        if (letter.status === 'received') statusColor = chalk.green;
+        if (letter.status === 'pending') statusColor = chalk.yellow;
+        if (letter.status === 'printed') statusColor = chalk.yellow;
+        if (letter.status === 'mailed') statusColor = chalk.cyan;
+
+        console.log('');
+        console.log(`${chalk.gray('id:')} ${letter.id}`);
+        console.log(`${chalk.gray('name:')} ${letter.title}`);
+        console.log(`${chalk.gray('status:')} ${statusColor(letter.status)}`);
+
+        if (letter.tags.length > 0){
+            console.log(`${chalk.gray('tags:')} ${letter.tags.join(', ')}`);
+        }
+
+        console.log('');
+        console.log(`learn more at '${chalk.underline(letter.public_url)}'!`);
+        console.log(chalk.dim(`-----------------------------------`));
+        console.log('');
+    } catch (error){
+        console.error('');
+        console.error(chalk.red(`an error occured while loading the letter...`));
         console.error(chalk.red(`make sure the API key you're using is valid!`));
     }
 }
