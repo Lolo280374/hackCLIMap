@@ -6,6 +6,8 @@ import enquirer from 'enquirer';
 import os from 'os';
 import path from 'path';
 import { exec } from 'child_process';
+import blessed from 'blessed';
+import contrib from 'blessed-contrib';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const { prompt } = enquirer;
@@ -402,6 +404,81 @@ async function list_legacy_shipments(api_key){
         console.error(chalk.red(`an error occured while fetching legacy shipments...`));
         console.error(chalk.red(`make sure the API key you're using is valid!`));   
     }
+}
+
+async function mail_map(){
+    console.log(chalk.blue('loading hackclub global map!'));
+
+    let mapData;
+    try {
+        const { data: html } = await axios.get('https://mail.hackclub.com/map');
+        const jsonGlobal = html.match(/<script[^>]*id="map-data"[^>]*>([\s\S]*?)<\/script>/i);
+        mapData = JSON.parse(jsonGlobal[1]);
+    } catch (error){
+        console.error('');
+        console.error(chalk.red('failed to load the global map data!'));
+        console.error(chalk.red(`error: ${error.message}`));
+    }
+    
+    const screen = blessed.screen({
+        smartCSR: true,
+        title: 'hackclub earth mailmap',
+        fullUnicode: true
+    });
+
+    const map = contrib.map({
+        label: `hackclub mail - ${mapData.letters.length} current letters - (✉ : mailed letters), (✓ : received letters)`,
+        style: { shapeColor: 'cyan', stroke: 'blue' },
+        width: '100%',
+        height: '100%'
+    });
+
+    screen.append(map);
+
+    function append_letters(){
+        let receivedCount = 0;
+        let mailedCount = 0;
+
+        mapData.letters.forEach(letter => {
+            if (!letter.current_location) return;
+            const lat = letter.current_location.lat;
+            const lon = letter.current_location.lon;
+            let color = 'yellow';
+            let char = 'O';
+
+            if (letter.aasm_state === 'received'){
+                color = 'green';
+                char = '✓';
+                receivedCount++;
+            } else if (letter.aasm_state === 'mailed'){
+                color = 'white';
+                char = '✉';
+                mailedCount++;
+            }
+
+            map.addMarker({
+                lon: lon.toString(),
+                lat: lat.toString(),
+                color: color,
+                char: char
+            });
+        });
+    }
+    append_letters();
+
+    screen.on('resize', function(){
+        map.emit('attach');
+        append_letters();
+        screen.render();
+    });
+
+    screen.render();
+    return new Promise((resolve) => {
+        screen.key(['escape', 'q', 'C-c'], function(ch, key){
+            screen.destroy();
+            resolve();
+        });
+    });
 }
 
 mail();
