@@ -81,7 +81,7 @@ async function mail(){
     };
 
     if (resp_choice.toLowerCase() === `get info w/ package id`){
-        info_package()
+        await info_package(api_key)
     };
 
     if (resp_choice.toLowerCase() === 'open in your browser'){
@@ -248,6 +248,66 @@ async function info_letter(api_key){
     } catch (error){
         console.error('');
         console.error(chalk.red(`an error occured while loading the letter...`));
+        console.error(chalk.red(`make sure the API key you're using is valid!`));
+    }
+}
+
+async function info_package(api_key){
+    let pkg_choice;
+
+    const response = await prompt({
+        type: 'input',
+        name: 'pkg_id',
+        message: 'package ID to lookup:'
+    });
+    pkg_choice = response.pkg_id;
+
+    console.log(chalk.blue('loading!'));
+    try {
+        const response = await axios.get(`https://mail.hackclub.com/api/public/v1/packages/${pkg_choice}`, {
+            headers: {
+                'Authorization': `Bearer ${api_key}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const pkg = response.data.package;
+
+        let statusColor = chalk.white;
+        if (pkg.status === 'received') statusColor = chalk.green;
+        if (pkg.status === 'pending') statusColor = chalk.yellow;
+        if (pkg.status === 'printed') statusColor = chalk.yellow;
+        if (pkg.status === 'mailed') statusColor = chalk.cyan;
+
+        console.log(`${chalk.gray('id:')} ${pkg.id} (${pkg.type})`);
+        console.log(`${chalk.gray('name:')} ${pkg.title}`);
+        console.log(`${chalk.gray('status:')} ${statusColor(pkg.status)}`);
+
+        if (pkg.tags.length > 0){
+            console.log(`${chalk.gray('tags:')} ${pkg.tags.join(', ')}`);
+        }
+
+        console.log('');
+        console.log(`${pkg.carrier} ${chalk.gray('via')} ${pkg.service}`);
+        console.log(`${chalk.gray('total weight of')} ${pkg.weight} lbs, ${chalk.gray('with contents:')}`);
+
+        if (pkg.contents && pkg.contents.length > 0){
+            pkg.contents.forEach(item => {
+                console.log(`${chalk.blue(item.quantity + 'x')} ${item.name} ${chalk.dim('(' + item.hc_sku + ')')}`);
+            });
+        } else {
+            console.log(chalk.gray('(no contents listed...)'));
+        }
+
+        console.log('');
+        console.log(`learn more at '${chalk.underline(pkg.public_url)}'!`);
+        console.log(chalk.dim(`-----------------------------------`));
+        console.log('');
+    } catch (error){
+        console.error('');
+        console.error(chalk.red(`an error occured while loading the package...`));
+        console.error(chalk.red(`note that there's also a bug for packages where some don't get any API response...`));
+        console.error(chalk.red(`this is not something I can fix, it's sadly an API issue afaik :(`));
         console.error(chalk.red(`make sure the API key you're using is valid!`));
     }
 }
