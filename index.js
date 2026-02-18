@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import enquirer from 'enquirer';
 import os from 'os';
 import path from 'path';
+import { exec } from 'child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const { prompt } = enquirer;
@@ -54,6 +55,7 @@ async function mail(){
             choices: [
                 { message: 'list letters', name: 'list letters' },
                 { message: 'list packages', name: 'list packages' },
+                { message: 'list legacy shipments', name: 'list legacy shipments' },
                 { message: 'get info w/ letter ID', name: `get info w/ letter ID` },
                 { message: 'get info w/ package ID', name: `get info w/ package ID` },
                 { message: 'open in your browser', name: 'open in your browser' },
@@ -76,20 +78,24 @@ async function mail(){
         await list_packages(api_key);
     };
 
+    if (resp_choice.toLowerCase() === 'list legacy shipments'){
+        await list_legacy_shipments(api_key);
+    };
+
     if (resp_choice.toLowerCase() === `get info w/ letter id`){
         await info_letter(api_key);
     };
 
     if (resp_choice.toLowerCase() === `get info w/ package id`){
-        await info_package(api_key)
+        await info_package(api_key);
     };
 
     if (resp_choice.toLowerCase() === 'open in your browser'){
-        browser_fallback()
+        await browser_fallback();
     };
 
     if (resp_choice.toLowerCase() === 'open the global mail map'){
-        mail_map()
+        await mail_map();
     };
 }
 
@@ -309,6 +315,92 @@ async function info_package(api_key){
         console.error(chalk.red(`note that there's also a bug for packages where some don't get any API response...`));
         console.error(chalk.red(`this is not something I can fix, it's sadly an API issue afaik :(`));
         console.error(chalk.red(`make sure the API key you're using is valid!`));
+    }
+}
+
+async function browser_fallback(){
+    const mail_url = 'https://mail.hackclub.com/my/mail/';
+    let command;
+
+    if (process.platform === "win32"){
+        command = `start "" "${mail_url}"`;
+    } else if (process.platform === "darwin"){
+        command = `open "${mail_url}"`;
+    } else{
+        command = `xdg-open "${mail_url}"`;
+    }
+
+    console.log(chalk.blue('hackclub mail has been opened in your default browser!'));
+    console.log(chalk.blue('or at least normally it should have...'));
+    console.log(chalk.dim(`-----------------------------------`));
+    console.log('');
+    exec(command);
+}
+
+async function list_legacy_shipments(api_key){
+    console.log(chalk.blue('loading!'));
+
+    try {
+        const response = await axios.get('https://mail.hackclub.com/api/public/v1/lsv', {
+            headers: {
+                'Authorization': `Bearer ${api_key}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const legacy_shipments = response.data.legacy_shipment_viewer_records;
+
+        if (legacy_shipments.length === 0){
+            console.log(chalk.yellow('no legacy shipments found...'));
+            console.log(chalk.yellow(`note that this endpoint isn't being used anymore, and is only for old shipments.`));
+            return;
+        }
+
+        console.log(chalk.green(`showing a total of ${legacy_shipments.length} shipments:`));
+        console.log('');
+
+        legacy_shipments.forEach(shipment => {
+
+            let statusColor = chalk.white;
+            if (shipment.status === 'received') statusColor = chalk.green;
+            if (shipment.status === 'pending') statusColor = chalk.yellow;
+            if (shipment.status === 'printed') statusColor = chalk.yellow;
+            if (shipment.status === 'mailed') statusColor = chalk.cyan;
+
+            console.log(`${chalk.gray('id:')} ${shipment.id}`);
+            console.log(`${chalk.gray('name:')} ${shipment.title}`);
+            console.log(`${chalk.gray('status:')} ${statusColor(shipment.status)}`);
+
+            if (shipment.tracking_number){
+                console.log(`${chalk.gray('tracking:')} ${chalk.blue(shipment.tracking_number)}`);
+                if (shipment.tracking_link){
+                    console.log(`${chalk.dim(shipment.tracking_link)}`);
+                }
+            }
+
+            console.log('');
+
+            if (shipment.contents && shipment.contents.length > 0){
+                console.log(chalk.gray('contents:'));
+                shipment.contents.forEach(item => {
+                    console.log(`- ${item}`);
+                });
+            } else if (shipment.description){
+                console.log(`${chalk.gray('description:')} ${shipment.description}`);
+            } else {
+                console.log(chalk.gray('(no contents listed...)'));
+            }
+
+            console.log('');
+            console.log(`learn more at '${chalk.underline(shipment.public_url)}'!`);
+            console.log(chalk.dim(`-----------------------------------`));
+            console.log('');
+
+        });
+    } catch (error){
+        console.error('');
+        console.error(chalk.red(`an error occured while fetching legacy shipments...`));
+        console.error(chalk.red(`make sure the API key you're using is valid!`));   
     }
 }
 
