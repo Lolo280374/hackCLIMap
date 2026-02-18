@@ -6,9 +6,9 @@
 <a href="#npm-linux-macos-windows"><img src="https://img.shields.io/badge/os-windows-brightgreen"></a>
 <br></p>
 
-<p align="center"><br><a href="https://www.npmjs.com/package/hackCLIMap" title="npm downloads stats"><img src="https://img.shields.io/npm/dt/hackCLIMap" alt="npm downloads 
+<p align="center"><br><a href="https://www.npmjs.com/package/hackclimap" title="npm downloads stats"><img src="https://img.shields.io/npm/dt/hackclimap" alt="npm downloads 
 stats"></a>
-<a href="https://www.npmjs.com/package/hackCLIMap" title="npm version"><img src="https://img.shields.io/npm/v/hackCLIMap" alt="npm version"></a></p>
+<a href="https://www.npmjs.com/package/hackclimap" title="npm version"><img src="https://img.shields.io/npm/v/hackclimap" alt="npm version"></a></p>
 
 <h3 align="center">
 track your Hack Club mail, all while avoiding the web clutter and lags! </a>
